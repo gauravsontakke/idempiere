@@ -46,6 +46,7 @@ import org.compiere.minigrid.UUIDColumn;
 import org.compiere.model.MImage;
 import org.compiere.util.DisplayType;
 import org.compiere.util.Env;
+import org.compiere.util.ICUDecimalFormatWrapper;
 import org.compiere.util.Language;
 import org.compiere.util.MSort;
 import org.compiere.util.Msg;
@@ -326,7 +327,11 @@ public class WListItemRenderer implements ListitemRenderer<Object>, EventListene
 					if (isCellEditable)
 					{
 						NumberBox numberbox = new NumberBox(false);
-						numberbox.getDecimalbox().setFormat(format.toPattern());
+						if (format instanceof ICUDecimalFormatWrapper) {
+							numberbox.getDecimalbox().setFormat("locale:" + lang.getLocale().toLanguageTag());
+						} else {
+							numberbox.getDecimalbox().setFormat(format.toPattern());
+						}
 						numberbox.getDecimalbox().setLocale(lang.getLocale());
 						numberbox.setFormat(format);
 						numberbox.setValue(value);

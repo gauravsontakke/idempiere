@@ -678,10 +678,13 @@ public final class DisplayType
 			myLanguage =  Env.getLocaleLanguage(Env.getCtx());
 		Locale locale = myLanguage.getLocale();
 		DecimalFormat format = null;
-		if (locale != null)
-			format = (DecimalFormat)NumberFormat.getNumberInstance(locale);
-		else
+		if (locale != null) {
+			format = getICUFormatIfNeeded(locale);
+			if (format == null)
+				format = (DecimalFormat)NumberFormat.getNumberInstance(locale);
+		} else {
 			format = (DecimalFormat)NumberFormat.getNumberInstance(Locale.US);
+		}
 		//
 		if (pattern != null && pattern.length() > 0)
 		{
@@ -1265,5 +1268,42 @@ public final class DisplayType
 	
 	private static List<IServiceReferenceHolder<IDisplayTypeFactory>> getDisplayTypeFactories() {
 		 return Service.locator().list(IDisplayTypeFactory.class).getServiceReferences();
+	}
+
+	/**
+	 * Returns an ICUDecimalFormatWrapper for locales that require secondary grouping
+	 * (e.g., en_IN uses Indian-style 1,35,000.00 instead of 135,000.00).
+	 * Java 17's standard DecimalFormat does not support secondary grouping.
+	 * Returns null if the locale does not need secondary grouping.
+	 */
+	private static DecimalFormat getICUFormatIfNeeded(Locale locale) {
+		try {
+			com.ibm.icu.text.DecimalFormat icuFormat =
+				(com.ibm.icu.text.DecimalFormat) com.ibm.icu.text.NumberFormat.getNumberInstance(
+					com.ibm.icu.util.ULocale.forLocale(locale));
+			if (icuFormat.getSecondaryGroupingSize() > 0) {
+				return new ICUDecimalFormatWrapper(icuFormat, locale);
+			}
+		} catch (Exception e) {
+			s_log.log(Level.WARNING, "ICU4J format check failed for locale " + locale, e);
+		}
+		return null;
+	}
+
+	/**
+	 * Returns true if the locale uses secondary (non-uniform) grouping, e.g., en_IN
+	 * which uses Indian-style 1,35,000 grouping (groups of 3 then 2).
+	 * Used by ZK UI editors to decide whether to use locale-based client rendering.
+	 */
+	public static boolean hasSecondaryGrouping(Locale locale) {
+		if (locale == null) return false;
+		try {
+			com.ibm.icu.text.DecimalFormat icuFormat =
+				(com.ibm.icu.text.DecimalFormat) com.ibm.icu.text.NumberFormat.getNumberInstance(
+					com.ibm.icu.util.ULocale.forLocale(locale));
+			return icuFormat.getSecondaryGroupingSize() > 0;
+		} catch (Exception e) {
+			return false;
+		}
 	}
 }	//	DisplayType

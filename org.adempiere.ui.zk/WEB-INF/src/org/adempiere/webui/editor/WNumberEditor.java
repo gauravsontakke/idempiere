@@ -32,6 +32,7 @@ import org.adempiere.webui.window.WFieldRecordInfo;
 import org.compiere.model.GridField;
 import org.compiere.util.DisplayType;
 import org.compiere.util.Env;
+import org.compiere.util.ICUDecimalFormatWrapper;
 import org.compiere.util.Language;
 import org.compiere.util.Util;
 import org.zkoss.zk.ui.event.Event;
@@ -190,10 +191,16 @@ public class WNumberEditor extends WEditor implements ContextMenuListener
 		// IDEMPIERE-989
 		Language lang = AEnv.getLanguage(Env.getCtx());
 		DecimalFormat format = DisplayType.getNumberFormat(displayType, lang);
-		if (gridField != null && gridField.getFormatPattern() != null)
+		if (gridField != null && gridField.getFormatPattern() != null) {
 			getComponent().getDecimalbox().setFormat(gridField.getFormatPattern());
-		else
+		} else if (format instanceof ICUDecimalFormatWrapper) {
+			// Use ZK's locale-based client rendering (Intl.NumberFormat) for locales
+			// with secondary grouping (e.g., en_IN: 1,35,000.00 instead of 135,000.00).
+			// Java's DecimalFormat.toPattern() loses secondary grouping information.
+			getComponent().getDecimalbox().setFormat("locale:" + lang.getLocale().toLanguageTag());
+		} else {
 			getComponent().getDecimalbox().setFormat(format.toPattern());
+		}
 		getComponent().getDecimalbox().setLocale(lang.getLocale());
 		getComponent().setFormat(format);
 		
